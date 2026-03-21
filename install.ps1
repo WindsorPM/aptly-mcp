@@ -123,49 +123,12 @@ Pop-Location
 
 Write-Host "Configuring Claude Desktop..." -ForegroundColor Cyan
 
-$serverPath = (Join-Path $installDir "server.mjs") -replace '\\', '\\'
+# Use configure.ps1 from the install directory (same fix as the .bat)
+$configScript = Join-Path $installDir "configure.ps1"
+$serverPath = Join-Path $installDir "server.mjs"
 
-$aptlyEntry = @{
-    command = "node"
-    args = @($serverPath)
-    env = @{
-        APTLY_API_KEY = $ApiKey
-    }
-}
-
-if (Test-Path $configPath) {
-    # Config exists — merge our entry in
-    $config = Get-Content $configPath -Raw | ConvertFrom-Json
-
-    # Ensure mcpServers exists
-    if (-not $config.mcpServers) {
-        $config | Add-Member -NotePropertyName "mcpServers" -NotePropertyValue ([PSCustomObject]@{})
-    }
-
-    # Add or update aptlyMCP
-    if ($config.mcpServers.PSObject.Properties["aptlyMCP"]) {
-        $config.mcpServers.aptlyMCP = [PSCustomObject]$aptlyEntry
-        Write-Host "Updated existing aptlyMCP config." -ForegroundColor Green
-    } else {
-        $config.mcpServers | Add-Member -NotePropertyName "aptlyMCP" -NotePropertyValue ([PSCustomObject]$aptlyEntry)
-        Write-Host "Added aptlyMCP to existing config." -ForegroundColor Green
-    }
-
-    $config | ConvertTo-Json -Depth 10 | Set-Content $configPath -Encoding UTF8
-} else {
-    # No config — create fresh
-    $configDir = Split-Path $configPath
-    if (-not (Test-Path $configDir)) { New-Item -ItemType Directory -Path $configDir -Force | Out-Null }
-
-    $config = @{
-        mcpServers = @{
-            aptlyMCP = $aptlyEntry
-        }
-    }
-
-    $config | ConvertTo-Json -Depth 10 | Set-Content $configPath -Encoding UTF8
-    Write-Host "Created Claude Desktop config." -ForegroundColor Green
-}
+& $configScript -ServerPath $serverPath -ApiKey $ApiKey
+Write-Host "Claude Desktop configured." -ForegroundColor Green
 
 # --- Done ---
 

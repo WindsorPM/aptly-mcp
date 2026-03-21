@@ -113,28 +113,10 @@ echo   [OK] Dependencies installed
 :: --- Configure Claude Desktop ---
 echo   [..] Configuring Claude Desktop...
 
-:: Build the server path with escaped backslashes for JSON
 set "SERVER_PATH=%INSTALL_DIR%\server.mjs"
-set "SERVER_JSON=%SERVER_PATH:\=\\%"
 
-:: Use PowerShell to handle JSON merging properly
-powershell -NoProfile -Command ^
-    "$configPath = '%CONFIG_PATH%';" ^
-    "$serverPath = '%SERVER_JSON%';" ^
-    "$apiKey = '%API_KEY%';" ^
-    "" ^
-    "$entry = @{ command = 'node'; args = @($serverPath); env = @{ APTLY_API_KEY = $apiKey } };" ^
-    "" ^
-    "if (Test-Path $configPath) {" ^
-    "  $config = Get-Content $configPath -Raw | ConvertFrom-Json;" ^
-    "  if (-not $config.mcpServers) { $config | Add-Member -NotePropertyName 'mcpServers' -NotePropertyValue ([PSCustomObject]@{}) }" ^
-    "  if ($config.mcpServers.PSObject.Properties['aptlyMCP']) { $config.mcpServers.aptlyMCP = [PSCustomObject]$entry }" ^
-    "  else { $config.mcpServers | Add-Member -NotePropertyName 'aptlyMCP' -NotePropertyValue ([PSCustomObject]$entry) }" ^
-    "  $config | ConvertTo-Json -Depth 10 | Set-Content $configPath -Encoding UTF8" ^
-    "} else {" ^
-    "  $dir = Split-Path $configPath; if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }" ^
-    "  @{ mcpServers = @{ aptlyMCP = $entry } } | ConvertTo-Json -Depth 10 | Set-Content $configPath -Encoding UTF8" ^
-    "}"
+:: configure.ps1 was downloaded from GitHub into INSTALL_DIR — call it
+powershell -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\configure.ps1" -ServerPath "%SERVER_PATH%" -ApiKey "%API_KEY%"
 
 echo   [OK] Claude Desktop configured
 
