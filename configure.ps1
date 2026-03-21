@@ -14,37 +14,44 @@ if (-not (Test-Path $configDir)) {
     New-Item -ItemType Directory -Path $configDir -Force | Out-Null
 }
 
-# Build the aptlyMCP entry as a plain PowerShell object
-# ConvertTo-Json will handle backslash escaping automatically
-$aptlyObj = [PSCustomObject]@{
-    command = "node"
-    args = @($ServerPath)
-    env = [PSCustomObject]@{
-        APTLY_API_KEY = $ApiKey
-    }
-}
+# Escape backslashes for JSON (single \ becomes \\)
+$pathForJson = $ServerPath.Replace('\', '\\')
+$keyForJson = $ApiKey.Replace('\', '\\').Replace('"', '\"')
 
-# Read or create config
+# Build the aptlyMCP JSON block as a raw string — no ConvertTo-Json
+$aptlyBlock = @"
+    "aptlyMCP": {
+      "command": "node",
+      "args": ["$pathForJson"],
+      "env": {
+        "APTLY_API_KEY": "$keyForJson"
+      }
+    }
+"@
+
 if (Test-Path $configPath) {
-    $config = Get-Content $configPath -Raw | ConvertFrom-Json
+    $raw = Get-Content $configPath -Raw
 
-    # Ensure mcpServers exists
-    if (-not $config.mcpServers) {
-        $config | Add-Member -NotePropertyName "mcpServers" -NotePropertyValue ([PSCustomObject]@{})
-    }
-
-    # Add or update aptlyMCP
-    if ($config.mcpServers.PSObject.Properties["aptlyMCP"]) {
-        $config.mcpServers.aptlyMCP = $aptlyObj
+    if ($raw -match '"aptlyMCP"') {
+        # Replace existing aptlyMCP block
+        $raw = $raw -replace '"aptlyMCP"\s*:\s*\{[^}]*\{[^}]*\}[^}]*\}', $aptlyBlock.Trim()
+    } elseif ($raw -match '"mcpServers"\s*:\s*\{') {
+        # Add aptlyMCP to existing mcpServers
+        $raw = $raw -replace '("mcpServers"\s*:\s*\{)', "`$1`n$aptlyBlock,"
     } else {
-        $config.mcpServers | Add-Member -NotePropertyName "aptlyMCP" -NotePropertyValue $aptlyObj
+        # Add mcpServers section
+        $raw = $raw -replace '\{', "{`n  ""mcpServers"": {`n$aptlyBlock`n  },", 1
     }
-} else {
-    $config = [PSCustomObject]@{
-        mcpServers = [PSCustomObject]@{
-            aptlyMCP = $aptlyObj
-        }
-    }
-}
 
-$config | ConvertTo-Json -Depth 10 | Set-Content $configPath -Encoding UTF8
+    Set-Content $configPath -Value $raw -Encoding UTF8
+} else {
+    # Create fresh config
+    $json = @"
+{
+  "mcpServers": {
+$aptlyBlock
+  }
+}
+"@
+    Set-Content $configPath -Value $json -Encoding UTF8
+}
