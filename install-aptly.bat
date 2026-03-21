@@ -115,8 +115,8 @@ echo   [..] Configuring Claude Desktop...
 
 set "SERVER_PATH=%INSTALL_DIR%\server.mjs"
 
-:: configure.ps1 was downloaded from GitHub into INSTALL_DIR — call it
-powershell -NoProfile -ExecutionPolicy Bypass -File "%INSTALL_DIR%\configure.ps1" -ServerPath "%SERVER_PATH%" -ApiKey "%API_KEY%"
+:: configure.js was downloaded from GitHub into INSTALL_DIR — use Node (already installed)
+node "%INSTALL_DIR%\configure.cjs" "%SERVER_PATH%" "%API_KEY%"
 
 echo   [OK] Claude Desktop configured
 
