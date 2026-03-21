@@ -14,18 +14,15 @@ if (-not (Test-Path $configDir)) {
     New-Item -ItemType Directory -Path $configDir -Force | Out-Null
 }
 
-# Build the aptlyMCP entry with properly escaped path for JSON
-$serverPathJson = $ServerPath -replace '\\', '\\'
-$aptlyJson = @"
-{
-  "command": "node",
-  "args": ["$serverPathJson"],
-  "env": {
-    "APTLY_API_KEY": "$ApiKey"
-  }
+# Build the aptlyMCP entry as a plain PowerShell object
+# ConvertTo-Json will handle backslash escaping automatically
+$aptlyObj = [PSCustomObject]@{
+    command = "node"
+    args = @($ServerPath)
+    env = [PSCustomObject]@{
+        APTLY_API_KEY = $ApiKey
+    }
 }
-"@
-$aptlyObj = $aptlyJson | ConvertFrom-Json
 
 # Read or create config
 if (Test-Path $configPath) {
@@ -50,6 +47,4 @@ if (Test-Path $configPath) {
     }
 }
 
-# Write config — ConvertTo-Json won't double-escape because we built the
-# entry from a pre-escaped JSON string via ConvertFrom-Json
 $config | ConvertTo-Json -Depth 10 | Set-Content $configPath -Encoding UTF8
